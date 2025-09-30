@@ -1,82 +1,79 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import './App.css'
-import Hackathons from "./pages/Hackathons";
-import Profile from "./pages/Profile";
-import Register from "./pages/Register";
-import Login from "./pages/Login";
-import AddHackathon from "./pages/AddHackathon";
-import { Navbar } from './components/Navbar/Navbar';
-import { Footer } from './components/Footer/Footer';
-import Landing from "./pages/Landing";
-import { useSelector } from "react-redux";
-import PrivateRoute from "./components/PrivateRoute/PrivateRoute";
-import ProfileWrapper from './components/Profile/ProfileWrapper';
-import EditHostProfile from './pages/EditHostProfile';
-import HackathonDetails from './pages/HackathonDetails';
-import HackathonRegistration from './pages/HackathonRegistration';
-import EditUserProfile from './pages/EditUserProfile';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastProvider } from './components/ui/Toast';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import PrivateRoute from './components/Layout/PrivateRoute';
+
+// Pages
+import Landing from './pages/Landing';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import Registration from './pages/HackathonRegistration';
+import HackathonList from './pages/HackathonList';
+import HackathonDetail from './pages/HackathonDetail';
+import UserDashboard from './pages/UserDashboard';
+import UserProfile from './pages/UserProfile';
+import HostDashboard from './pages/HostDashboard';
+import HostProfile from './pages/HostProfile';
+import HostHackathonForm from './pages/AddHackathon';
+import Admin from './pages/Admin';
+
+// Layout components
+const PublicLayout = ({ children }) => (
+  <>
+    <Navbar />
+    {children}
+    <Footer />
+  </>
+);
+
+const AuthLayout = ({ children }) => (
+  <div className="bg-gray-50 min-h-screen">
+    {children}
+  </div>
+);
+
+const DashboardLayout = ({ children }) => (
+  <>
+    <Navbar />
+    <div className="pt-16 bg-gray-50 min-h-screen">
+      {children}
+    </div>
+    <Footer />
+  </>
+);
 
 function App() {
-  const user = useSelector(state => state.user);
-
   return (
-    <Router>
-      <div className="h-screen w-full flex flex-col">
-        <Navbar />
-        <main className="flex-1 w-full">
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/hackathons" element={<Hackathons />} />
-            <Route path="/hackathons/:id" element={<HackathonDetails />} />
-            
-            {/* Protected routes */}
-            <Route path="/profile" element={
-              <PrivateRoute>
-                <ProfileWrapper />
-              </PrivateRoute>
-            } />
-            <Route 
-              path="/user/profile/edit" 
-              element={
-                <PrivateRoute>
-                  <EditUserProfile />
-                </PrivateRoute>
-              } 
-            />
-            
-            {/* Host-only routes */}
-            <Route 
-              path="/host/profile/edit" 
-              element={
-                <PrivateRoute>
-                  <EditHostProfile />
-                </PrivateRoute>
-              }
-            />
-            <Route 
-              path="/add-hackathon" 
-              element={
-                <PrivateRoute>
-                  <AddHackathon />
-                </PrivateRoute>
-              } 
-            />
-            <Route 
-              path="/hackathons/:id/register" 
-              element={
-                <PrivateRoute>
-                  <HackathonRegistration />
-                </PrivateRoute>
-              } 
-            />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </Router>
+    <ToastProvider>
+      <Router>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<PublicLayout><Landing /></PublicLayout>} />
+          <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
+          <Route path="/register" element={<AuthLayout><Signup /></AuthLayout>} />
+          <Route path="/registration" element={<AuthLayout><Registration /></AuthLayout>} />
+          <Route path="/hackathons" element={<PublicLayout><HackathonList /></PublicLayout>} />
+          <Route path="/hackathons/:id" element={<PublicLayout><HackathonDetail /></PublicLayout>} />
+
+          {/* Protected user routes */}
+          <Route path="/user/dashboard" element={<PrivateRoute><DashboardLayout><UserDashboard /></DashboardLayout></PrivateRoute>} />
+          <Route path="/user/profile" element={<PrivateRoute><DashboardLayout><UserProfile /></DashboardLayout></PrivateRoute>} />
+
+          {/* Protected host routes */}
+          <Route path="/host/dashboard" element={<PrivateRoute ><DashboardLayout><HostDashboard /></DashboardLayout></PrivateRoute>} />
+          <Route path="/host/profile" element={<PrivateRoute ><DashboardLayout><HostProfile /></DashboardLayout></PrivateRoute>} />
+          <Route path="/host/hackathon/new" element={<PrivateRoute ><DashboardLayout><HostHackathonForm /></DashboardLayout></PrivateRoute>} />
+
+          {/* Admin route example (add your own AdminRoute logic if needed) */}
+          <Route path="/admin" element={<PrivateRoute requireAdmin={true}><DashboardLayout><Admin /></DashboardLayout></PrivateRoute>} />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </Router>
+    </ToastProvider>
   );
 }
 

@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createHackathon } from '../api';
+import { Button } from '../ui/Button';
+import { Toast } from '../ui/Toast';
+import { Skeleton } from '../ui/Skeleton';
 
 export default function CreateHackathon() {
   const navigate = useNavigate();
@@ -26,12 +29,19 @@ export default function CreateHackathon() {
     domain: '',
     skillsRequired: [''],
   });
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ open: false, message: '', type: 'info' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     const result = await createHackathon(form);
+    setLoading(false);
     if (!result.error) {
-      navigate('/host/dashboard');
+      setToast({ open: true, message: 'Hackathon created successfully!', type: 'success' });
+      setTimeout(() => navigate('/host/dashboard'), 2000);
+    } else {
+      setToast({ open: true, message: 'Error creating hackathon. Please try again.', type: 'error' });
     }
   };
 
@@ -49,8 +59,11 @@ export default function CreateHackathon() {
     }));
   };
 
+  if (loading) return <div className="max-w-4xl mx-auto py-8 px-4"><Skeleton height="h-64" /></div>;
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
+      <Toast isOpen={toast.open} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, open: false })} />
       <h1 className="text-2xl font-bold mb-6">Create Hackathon</h1>
       
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -224,19 +237,19 @@ export default function CreateHackathon() {
         </div>
 
         <div className="flex justify-end space-x-4">
-          <button
+          <Button
             type="button"
             onClick={() => navigate('/host/dashboard')}
-            className="px-4 py-2 border rounded-md"
+            variant="outline"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md"
+            isLoading={loading}
           >
             Create Hackathon
-          </button>
+          </Button>
         </div>
       </form>
     </div>

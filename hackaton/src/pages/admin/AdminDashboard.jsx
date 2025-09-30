@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAdminStats } from '../../api';
+import { Skeleton } from '../../ui/Skeleton';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -9,7 +10,7 @@ export default function AdminDashboard() {
     getAdminStats().then(setStats);
   }, []);
 
-  if (!stats) return <div>Loading...</div>;
+  if (!stats) return <div className="max-w-7xl mx-auto py-8 px-4"><Skeleton height="h-64" /></div>;
 
   return (
     <div className="min-h-screen bg-gray-100">

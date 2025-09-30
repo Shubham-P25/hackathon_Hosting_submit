@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getHackathons } from '../api';
 import HackathonCard from '../components/HackathonCard';
+import { Search } from '../ui/Search';
+import { Skeleton } from '../ui/Skeleton';
 
 export default function HackathonList() {
   const [hackathons, setHackathons] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: '',
     location: '',
@@ -14,7 +17,10 @@ export default function HackathonList() {
   });
 
   useEffect(() => {
-    getHackathons().then(data => setHackathons(data));
+    getHackathons().then(data => {
+      setHackathons(data);
+      setLoading(false);
+    });
   }, []);
 
   const filteredHackathons = hackathons.filter(h => 
@@ -29,28 +35,25 @@ export default function HackathonList() {
       <div className="max-w-7xl mx-auto py-8 px-4">
         {/* Search & Filters */}
         <div className="mb-8 space-y-4">
-          <input
-            type="search"
-            placeholder="Search hackathons..."
-            className="w-full p-3 rounded-md border"
+          <Search
             value={filters.search}
-            onChange={e => setFilters({...filters, search: e.target.value})}
+            onChange={e => setFilters({ ...filters, search: e.target.value })}
+            placeholder="Search hackathons..."
+            className="mb-2"
           />
-          
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <select
               value={filters.location}
-              onChange={e => setFilters({...filters, location: e.target.value})}
+              onChange={e => setFilters({ ...filters, location: e.target.value })}
               className="p-2 border rounded-md"
             >
               <option value="">Location</option>
               <option value="online">Online</option>
               <option value="onsite">Onsite</option>
             </select>
-            
             <select
               value={filters.domain}
-              onChange={e => setFilters({...filters, domain: e.target.value})}
+              onChange={e => setFilters({ ...filters, domain: e.target.value })}
               className="p-2 border rounded-md"
             >
               <option value="">Domain</option>
@@ -58,20 +61,18 @@ export default function HackathonList() {
               <option value="mobile">Mobile</option>
               <option value="ai">AI/ML</option>
             </select>
-            
             <select
               value={filters.mode}
-              onChange={e => setFilters({...filters, mode: e.target.value})}
+              onChange={e => setFilters({ ...filters, mode: e.target.value })}
               className="p-2 border rounded-md"
             >
               <option value="">Mode</option>
               <option value="team">Team</option>
               <option value="individual">Individual</option>
             </select>
-            
             <select
               value={filters.sortBy}
-              onChange={e => setFilters({...filters, sortBy: e.target.value})}
+              onChange={e => setFilters({ ...filters, sortBy: e.target.value })}
               className="p-2 border rounded-md"
             >
               <option value="popular">Most Popular</option>
@@ -81,11 +82,17 @@ export default function HackathonList() {
           </div>
         </div>
 
-        {/* Hackathon Grid */}
+        {/* Hackathon Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredHackathons.map(hackathon => (
-            <HackathonCard key={hackathon.id} hackathon={hackathon} />
-          ))}
+          {loading ? (
+            Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} height="h-48" />)
+          ) : filteredHackathons.length ? (
+            filteredHackathons.map(hackathon => (
+              <HackathonCard key={hackathon.id} hackathon={hackathon} />
+            ))
+          ) : (
+            <div className="col-span-full text-center text-gray-500 py-10">No hackathons found.</div>
+          )}
         </div>
       </div>
     </div>

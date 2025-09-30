@@ -1,123 +1,215 @@
+
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { getUserProfile, getHackathons } from '../api';
+import { Link, useNavigate } from 'react-router-dom';
+import { getMe } from '../api/auth';
+import { Skeleton } from '../ui/Skeleton';
+import { motion, AnimatePresence } from 'framer-motion';
+
 
 export default function UserDashboard() {
   const [profile, setProfile] = useState(null);
-  const [registeredHackathons, setRegisteredHackathons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [hackathons, setHackathons] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    getUserProfile().then(setProfile);
+    getMe().then(data => {
+      setProfile(data);
+      setHackathons(data.hackathons || []);
+      setLoading(false);
+    });
   }, []);
 
-  if (!profile) return <div>Loading...</div>;
+  if (loading || !profile) return <div className="max-w-7xl mx-auto py-8 px-4"><Skeleton height="h-64" /></div>;
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4">
-      {/* Profile Overview */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div className="flex items-start justify-between">
-          <div className="flex space-x-4">
-            <img
-              src={profile.profilePic || 'https://via.placeholder.com/100'}
-              alt={profile.name}
-              className="w-24 h-24 rounded-full"
-            />
-            <div>
-              <h1 className="text-2xl font-bold">{profile.name}</h1>
-              <p className="text-gray-600">{profile.email}</p>
-              <p className="text-gray-600">DOB: {new Date(profile.dob).toLocaleDateString()}</p>
-              <p className="text-gray-600">{profile.location}</p>
+    <motion.div
+      className="min-h-screen bg-gray-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {/* Profile Header */}
+      <motion.div
+        className="bg-gradient-to-r from-red-50 to-pink-100 border-b min-h-[260px] flex items-end"
+        style={{marginTop: -64, paddingTop: 80}}
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-8 pt-0">
+          <div className="flex items-start space-x-8">
+            {/* Profile Image */}
+            <div className="flex-shrink-0">
+              <div className="relative group">
+                <motion.img
+                  src={profile.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=128&background=random`}
+                  alt={profile.name}
+                  className="w-32 h-32 rounded-full bg-white shadow-md object-cover border-4 border-white"
+                  whileHover={{ scale: 1.05 }}
+                />
+                <button className="absolute bottom-0 right-0 bg-red-600 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Profile Info */}
+            <div className="flex-1">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">{profile.name}</h1>
+                  <div className="flex flex-col sm:flex-row sm:space-x-6 mt-2 text-gray-600 text-sm">
+                    <span><span className="font-semibold">D.o.b:</span> {profile.dob ? new Date(profile.dob).toLocaleDateString() : 'N/A'}</span>
+                    <span><span className="font-semibold">Location:</span> {profile.location || 'N/A'}</span>
+                  </div>
+                </div>
+                <Link
+                  to="/user/profile"
+                  className="bg-white text-red-600 px-4 py-2 rounded-md border border-red-600 hover:bg-red-50 transition-colors"
+                >
+                  Edit Profile
+                </Link>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <motion.div className="bg-white p-4 rounded-lg shadow-sm" whileHover={{ scale: 1.03 }}>
+                  <h3 className="font-medium text-gray-900 mb-1">Bio</h3>
+                  <p className="text-gray-700 min-h-[40px]">{profile.bio || <span className="text-gray-400">No bio added</span>}</p>
+                </motion.div>
+                <motion.div className="bg-white p-4 rounded-lg shadow-sm" whileHover={{ scale: 1.03 }}>
+                  <h3 className="font-medium text-gray-900 mb-1">Achievements</h3>
+                  <ul className="list-disc pl-5 text-gray-700">
+                    {profile.achievements?.length ? profile.achievements.map((ach, i) => (
+                      <li key={i}>{ach}</li>
+                    )) : <li className="text-gray-400">No achievements yet</li>}
+                  </ul>
+                </motion.div>
+                <motion.div className="bg-white p-4 rounded-lg shadow-sm" whileHover={{ scale: 1.03 }}>
+                  <h3 className="font-medium text-gray-900 mb-1">Social Links</h3>
+                  <div className="mt-2 flex flex-col space-y-2">
+                    {profile.socialLinks ? Object.entries(profile.socialLinks).map(([platform, url]) => (
+                      <a
+                        key={platform}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-400 hover:text-red-600 transition-colors"
+                      >
+                        {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                      </a>
+                    )) : <span className="text-gray-400">No links</span>}
+                  </div>
+                </motion.div>
+                <motion.div className="bg-white p-4 rounded-lg shadow-sm" whileHover={{ scale: 1.03 }}>
+                  <h3 className="font-medium text-gray-900 mb-1">Email</h3>
+                  <p className="text-gray-700 min-h-[40px]">{profile.email}</p>
+                </motion.div>
+              </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <Link
-              to="/user/profile/edit"
-              className="block bg-blue-600 text-white px-4 py-2 rounded-md text-center"
-            >
-              Edit Profile
-            </Link>
-            <Link
-              to="/hackathons"
-              className="block bg-green-600 text-white px-4 py-2 rounded-md text-center"
-            >
-              Join New Hackathon
-            </Link>
-          </div>
         </div>
+      </motion.div>
 
-        {/* Bio & Achievements */}
-        <div className="mt-6 grid grid-cols-2 gap-6">
-          <div>
-            <h3 className="font-semibold mb-2">Bio</h3>
-            <p className="text-gray-600">{profile.bio}</p>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-2">Achievements</h3>
-            <ul className="list-disc pl-4 text-gray-600">
-              {profile.achievements?.map((achievement, i) => (
-                <li key={i}>{achievement}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick Actions */}
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <button
+            onClick={() => navigate('/hackathons')}
+            className="inline-flex items-center px-6 py-3 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 transition-colors shadow-lg"
+          >
+            Join New Hackathon
+            <svg className="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </button>
+        </motion.div>
 
-        {/* Social Links */}
-        <div className="mt-4">
-          <h3 className="font-semibold mb-2">Social Links</h3>
-          <div className="flex space-x-4">
-            {Object.entries(profile.socialLinks || {}).map(([platform, url]) => (
-              <a
-                key={platform}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                {platform}
-              </a>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Hackathons & Certifications */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Registered Hackathons */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4">My Hackathons</h2>
-          <div className="space-y-4">
-            {profile.registrations?.map(registration => (
-              <div key={registration.id} className="border rounded-lg p-4">
-                <h3 className="font-semibold">{registration.hackathon.title}</h3>
-                <p className="text-gray-600">
-                  Status: {registration.status}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {new Date(registration.hackathon.startDate).toLocaleDateString()} - 
-                  {new Date(registration.hackathon.endDate).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Certifications */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4">Certifications</h2>
-          <div className="space-y-4">
-            {profile.certifications?.map((cert, index) => (
-              <div key={index} className="border rounded-lg p-4">
-                <h3 className="font-semibold">{cert.title}</h3>
-                <p className="text-gray-600">{cert.hackathon}</p>
-                <p className="text-sm text-gray-500">
-                  Issued: {new Date(cert.issueDate).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+        {/* Hackathons List */}
+        <AnimatePresence>
+        <motion.div
+          className="space-y-8"
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          {/* Participated Hackathons */}
+          <motion.div
+            className="bg-white rounded-lg shadow"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Participated Hackathons</h2>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {hackathons.length ? hackathons.map((hackathon) => (
+                <div key={hackathon.id} className="p-6">
+                  <div className="flex items-start space-x-6">
+                    <div className="flex-shrink-0 w-48 h-32 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400">
+                      {hackathon.poster ? (
+                        <img src={hackathon.poster} alt={hackathon.title} className="w-full h-full object-cover rounded-lg" />
+                      ) : 'Poster'}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium text-gray-900">{hackathon.title}</h3>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          hackathon.status === 'Completed'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {hackathon.status}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-500">
+                        <div>Domain: {hackathon.domain}</div>
+                        <div>Mode: {hackathon.mode}</div>
+                        <div>Participants: {hackathon.participants}</div>
+                        <div>Prize Pool: ${hackathon.prize}</div>
+                        <div>Guide: {hackathon.guide}</div>
+                        <div>Team Size: {hackathon.members}</div>
+                        <div className="col-span-2">Date: {hackathon.date}</div>
+                      </div>
+                      <div className="mt-4 flex space-x-3">
+                        {hackathon.status === 'Completed' && hackathon.certificate ? (
+                          <a
+                            href={hackathon.certificate}
+                            className="text-red-600 hover:text-red-700 font-medium"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            View Certificate
+                          </a>
+                        ) : (
+                          <Link
+                            to={`/hackathon/${hackathon.id}`}
+                            className="text-red-600 hover:text-red-700 font-medium"
+                          >
+                            View Details
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <div className="p-6 text-gray-400">No hackathons participated yet.</div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+        </AnimatePresence>
+      </main>
+    </motion.div>
   );
 }

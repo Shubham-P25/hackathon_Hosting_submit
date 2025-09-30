@@ -58,9 +58,9 @@ export default function HackathonCard({ hackathon }) {
           >
             View Details
           </Link>
-          {user && user.role !== 'HOST' && (
+          {(!user || user.role !== 'HOST') && (
             <button
-              onClick={handleApply}
+              onClick={() => navigate(`/hackathons/${hackathon.id}`)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
             >
               Register Now

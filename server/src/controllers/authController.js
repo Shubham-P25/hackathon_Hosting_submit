@@ -66,20 +66,32 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+
     console.log('✅ Password verified, generating token...');
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET || 'fallback-secret-key',
-      { expiresIn: "1d" }
-    );
+    let token, dashboard;
+    if (user.role === 'HOST') {
+      token = jwt.sign(
+        { id: user.id, role: user.role, type: 'host' },
+        process.env.JWT_SECRET || 'fallback-secret-key',
+        { expiresIn: "1d" }
+      );
+      dashboard = '/host/dashboard';
+    } else {
+      token = jwt.sign(
+        { id: user.id, role: user.role, type: 'user' },
+        process.env.JWT_SECRET || 'fallback-secret-key',
+        { expiresIn: "1d" }
+      );
+      dashboard = '/user/dashboard';
+    }
 
     console.log('✅ Login successful for:', email);
     const { password: _, ...userWithoutPassword } = user;
-    
     res.json({
       success: true,
       token,
-      user: userWithoutPassword
+      user: userWithoutPassword,
+      dashboard
     });
 
   } catch (err) {

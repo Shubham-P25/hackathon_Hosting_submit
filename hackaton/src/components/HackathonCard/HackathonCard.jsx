@@ -4,95 +4,65 @@ export function HackathonCard({ hackathon }) {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <>
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-        {/* Banner Image */}
-        {hackathon.banner && (
-          <div className="w-full h-48 bg-gray-200">
-            <img
-              src={`http://localhost:5000${hackathon.banner}`} // Use the banner field
-              alt={hackathon.title}
-              className="w-full h-full object-cover"
-            />
+    <motion.div
+      className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ff] to-[#f0fdfa] px-2 sm:px-8 lg:px-24 py-12 "
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.7 }}
+    >
+      <div className="max-w-7xl mx-auto grid gap-8">
+        {/* Banner above tabs (always leave space) */}
+        {hackathon.banner ? (
+          <div className="w-full mb-6">
+            <img src={hackathon.banner} alt="Banner" className="w-full h-50 object-cover rounded-3xl shadow-xl" />
           </div>
+        ) : (
+          <div className="w-full mb-6 h-55" />
         )}
-
-        <div className="p-4">
-          {/* Title */}
-          <h3 className="text-xl font-bold text-gray-800">{hackathon.title}</h3>
-
-          {/* Description */}
-          <p className="text-gray-600 mt-2 line-clamp-3">{hackathon.description}</p>
-
-          {/* Poster Image */}
-          {hackathon.poster && (
-            <div className="mt-4">
-              <img
-                src={`http://localhost:5000${hackathon.poster}`} // Use the poster field
-                alt={`${hackathon.title} Poster`}
-                className="w-full h-32 object-cover rounded-lg"
-              />
+        <motion.div
+          className="grid lg:grid-cols-3 gap-8"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+        >
+          <motion.div
+            className="lg:col-span-1 bg-gradient-to-br from-white/80 via-indigo-100 to-cyan-100 border border-white/50 backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl transition-transform duration-0"
+            initial={{ opacity: 0, x: -40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7, delay: 0.3 }}
+            whileHover={{ scale: 1.04, boxShadow: '0 8px 32px rgba(60, 60, 180, 0.18)' }}
+          >
+            <img src={hackathon.poster} alt={hackathon.title} className="w-full h-64 object-cover rounded-b-3xl" />
+            <div className="p-6 grid gap-4">
+              <h2 className="text-3xl font-extrabold leading-tight text-slate-900 drop-shadow mb-2">{hackathon.title}</h2>
+              <div className="grid grid-cols-2 gap-2 text-sm text-slate-600">
+                <Meta icon={Users} label={`${hackathon.participants?.toLocaleString() || "0"} participants`} />
+                <Meta icon={Trophy} label={`$${hackathon.prize || 0} prize`} />
+                <Meta icon={Globe} label={`Mode: ${hackathon.mode || "ONLINE"}`} />
+                <Meta icon={Calendar} label={`Dates: ${fmtRange({start: hackathon.startDate, end: hackathon.endDate})}`} />
+                <Meta icon={Clock} label={`Team Size: ${hackathon.teamSize || hackathon.members || "N/A"}`} />
+                <Meta icon={Globe} label={`Location: ${hackathon.location || "N/A"}`} />
+              </div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <Pill>{hackathon.domain}</Pill>
+                <Pill>{hackathon.Is_Paid || hackathon.paid ? "Paid" : "Free"}</Pill>
+                <Pill>{hackathon.location}</Pill>
+                <Pill>{hackathon.mode}</Pill>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant="primary"
+                  size="md"
+                  className="shadow-lg hover:scale-105 transition-transform duration-200"
+                  onClick={() => navigate('/registration')}
+                >
+                  Apply Now
+                </Button>
+              </div>
             </div>
-          )}
-
-          {/* Other Details */}
-          <div className="mt-4">
-            <p className="text-sm text-gray-500">
-              <strong>Domain:</strong> {hackathon.domain}
-            </p>
-            <p className="text-sm text-gray-500">
-              <strong>Mode:</strong> {hackathon.mode}
-            </p>
-            <p className="text-sm text-gray-500">
-              <strong>Start Date:</strong> {new Date(hackathon.startDate).toLocaleDateString()}
-            </p>
-            <p className="text-sm text-gray-500">
-              <strong>End Date:</strong> {new Date(hackathon.endDate).toLocaleDateString()}
-            </p>
-          </div>
-
-          {/* Action Button */}
-          <div className="mt-4 flex justify-end">
-            <button className="bg-red-400 text-white px-6 py-2 rounded-md hover:bg-red-500 transition-colors">
-              Apply Now!
-            </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
-
-      {/* Expandable Details */}
-      <div className={`mt-4 ${showDetails ? 'block' : 'hidden'}`}>
-        <div className="border-t pt-4 space-y-4">
-          <div>
-            <h4 className="font-semibold">Overview</h4>
-            <p className="text-gray-600">{hackathon.overview}</p>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold">Required Skills</h4>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {Array.isArray(hackathon.skillsRequired) && hackathon.skillsRequired.map((skill, index) => (
-                <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-semibold">Criteria</h4>
-            <p className="text-gray-600">{hackathon.criteria}</p>
-          </div>
-        </div>
-      </div>
-
-      <button 
-        onClick={() => setShowDetails(!showDetails)}
-        className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-      >
-        {showDetails ? 'Show Less' : 'Show More'}
-      </button>
-    </>
+    </motion.div>
   );
 }
-

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getUsers, updateUserStatus } from '../../../api';
+import { Button } from '../../../ui/Button';
+import { Skeleton } from '../../../ui/Skeleton';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -21,7 +23,7 @@ export default function AdminUsers() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="max-w-4xl mx-auto py-8 px-4"><Skeleton height="h-32" /></div>;
 
   return (
     <div className="bg-white shadow rounded-lg">
@@ -43,24 +45,9 @@ export default function AdminUsers() {
               <td className="px-6 py-4">{user.role}</td>
               <td className="px-6 py-4">{user.status}</td>
               <td className="px-6 py-4 space-x-2">
-                <button
-                  onClick={() => handleStatusUpdate(user.id, 'BANNED')}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  Ban
-                </button>
-                <button
-                  onClick={() => handleStatusUpdate(user.id, 'ACTIVE')}
-                  className="text-green-600 hover:text-green-800"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => handleStatusUpdate(user.id, 'DELETED')}
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  Delete
-                </button>
+                <Button onClick={() => handleStatusUpdate(user.id, 'BANNED')} variant="danger" size="sm">Ban</Button>
+                <Button onClick={() => handleStatusUpdate(user.id, 'ACTIVE')} variant="success" size="sm">Approve</Button>
+                <Button onClick={() => handleStatusUpdate(user.id, 'DELETED')} variant="outline" size="sm">Delete</Button>
               </td>
             </tr>
           ))}

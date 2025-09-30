@@ -12,7 +12,6 @@ model User {
   name      String
   email     String    @unique
   password  String
-  gender    String?
   role      String    // "student" or "host"
   createdAt DateTime  @default(now())
 
@@ -50,8 +49,10 @@ model HostProfile {
   id               Int      @id @default(autoincrement())
   userId           Int      @unique
   profession       String?
+  education      String?
   bio              String?  @db.Text
   collegeOrCompany String?
+  clgNameorCmpName    String?
   domain           String?
   achievements     String?  @db.Text
   socialLinks      String?  @db.Text
@@ -64,6 +65,8 @@ model HostProfile {
 
 model Hackathon {
   id              Int       @id @default(autoincrement())
+  poster          String?
+  banner          String?
   title           String
   description     String    @db.Text
   overview        String    @db.Text  // Add this field

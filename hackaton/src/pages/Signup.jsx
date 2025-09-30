@@ -1,16 +1,16 @@
+// Integrated from SubmitIt/src/Pages/Signup.jsx
 
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { setCredentials } from '../store/slices/userSlice';
 import { Link, useNavigate } from 'react-router-dom';
-import { login, setToken, getMe } from '../api/auth';
+import { register } from '../api/auth';
 
-export default function Login() {
-  const dispatch = useDispatch();
+export default function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
-    password: ''
+    password: '',
+    role: 'USER',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,37 +28,45 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    console.log('[Signup] Submitting form data:', formData);
     try {
-      const res = await login(formData);
-      if (res.token) {
-        setToken(res.token);
-        // Fetch user info to get role
-        const user = await getMe();
-        dispatch(setCredentials({ token: res.token, user }));
-        // Immediate redirect based on role
-        if (user && user.role === 'HOST') {
-          window.location.replace('/host/dashboard');
-          return;
-        } else if (user && user.role === 'USER') {
-          window.location.replace('/user/dashboard');
-          return;
-        } else {
-          window.location.replace('/');
-          return;
-        }
+      const res = await register(formData);
+      console.log('[Signup] API response:', res);
+      if (res && !res.error) {
+        console.log('[Signup] Registration successful, navigating to /login');
+        navigate('/login');
       } else {
-        setError(res.message || 'Login failed');
+        setError(res.message || 'Signup failed');
+        console.log('[Signup] Signup error response:', res);
       }
     } catch (err) {
-      setError('Login failed');
+      setError('Signup failed');
+      console.log('[Signup] Signup error (exception):', err);
     } finally {
       setIsLoading(false);
+      console.log('[Signup] Registration process finished.');
     }
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Login Form */}
+      {/* Left side - Image */}
+      <div className="hidden lg:block relative w-0 flex-1">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/30 to-red-600/30 backdrop-blur-sm mix-blend-multiply" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
+          <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Join SubmitIt Today</h2>
+              <p className="text-lg opacity-90">
+                Create, participate, and innovate in exciting hackathons
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right side - Form */}
       <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-md w-full space-y-8">
           <div>
@@ -66,12 +74,12 @@ export default function Login() {
               <div className="h-8 w-auto text-4xl font-extrabold text-red-600">SubmitIt</div>
             </Link>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Welcome back
+              Create your account
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/register" className="font-medium text-red-600 hover:text-red-500">
-                Sign up
+              Already have an account?{' '}
+              <Link to="/login" className="font-medium text-red-600 hover:text-red-500">
+                Sign in
               </Link>
             </p>
           </div>
@@ -79,9 +87,20 @@ export default function Login() {
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="login-email" className="block text-sm font-medium text-gray-700">Email address</label>
+                <label className="block text-sm font-medium text-gray-700">Full name</label>
                 <input
-                  id="login-email"
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                  autoComplete="name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email address</label>
+                <input
                   type="email"
                   name="email"
                   value={formData.email}
@@ -92,16 +111,15 @@ export default function Login() {
                 />
               </div>
               <div className="relative">
-                <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">Password</label>
+                <label className="block text-sm font-medium text-gray-700">Password</label>
                 <input
-                  id="login-password"
                   type={isPasswordVisible ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -122,6 +140,18 @@ export default function Login() {
                   )}
                 </button>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Role</label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md"
+                >
+                  <option value="USER">User</option>
+                  <option value="HOST">Host</option>
+                </select>
+              </div>
             </div>
             {error && (
               <p className="text-sm text-red-600 text-center">{error}</p>
@@ -131,7 +161,7 @@ export default function Login() {
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
               disabled={isLoading}
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? 'Creating account...' : 'Create Account'}
             </button>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -139,21 +169,6 @@ export default function Login() {
               </div>
             </div>
           </form>
-        </div>
-      </div>
-      {/* Right side - Image */}
-      <div className="hidden lg:block relative w-0 flex-1">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-500/30 to-purple-600/30 backdrop-blur-sm mix-blend-multiply" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
-          <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Welcome to SubmitIt</h2>
-              <p className="text-lg opacity-90">
-                Join our community of innovators and participate in exciting hackathons
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
