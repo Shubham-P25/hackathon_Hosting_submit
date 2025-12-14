@@ -8,4 +8,14 @@
 html, body, #root { height: 100%; }
 body { @apply bg-gray-50 text-gray-800; }
 
+/* small custom animation used by LoadingPage */
+@keyframes tilt {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(6deg) scale(1.02); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+.animate-tilt {
+  animation: tilt 3s ease-in-out infinite;
+}
+
 

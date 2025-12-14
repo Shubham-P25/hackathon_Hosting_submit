@@ -22,6 +22,7 @@ model User {
   registrations    Registration[]
   teamMemberships  TeamMember[]
   ledTeams        Team[]         @relation("TeamLeader")
+  teamJoinRequests TeamJoinRequest[]
 }
 
 model UserProfile {
@@ -37,6 +38,7 @@ model UserProfile {
   bio            String?
   dateOfBirth    DateTime?
   domain         String?
+  gender         String?   // Added gender field
   socialLinks    Json?     // {github: "", linkedin: "", twitter: ""}
   achievements   Json?     // list of achievements
   profilePicUrl  String?
@@ -67,6 +69,7 @@ model Hackathon {
   id              Int       @id @default(autoincrement())
   poster          String?
   banner          String?
+  gallery         Json?     @default("[]") // Array of gallery image URLs
   title           String
   description     String    @db.Text
   overview        String    @db.Text  // Add this field
@@ -85,6 +88,7 @@ model Hackathon {
   startDate       DateTime
   endDate         DateTime
   location        String?
+  Ispaid          Boolean
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   hostId          Int
@@ -117,6 +121,11 @@ model Team {
   id             Int       @id @default(autoincrement())
   name           String
   bio            String?
+  projectName    String?
+  problemStatement String?
+  projectLink    String?
+  fileurl        String?
+  isPublic       Boolean   @default(true)
   rolesRequired  Json      @default("[]")
   hackathonId    Int
   leaderId       Int
@@ -126,6 +135,7 @@ model Team {
   hackathon      Hackathon  @relation(fields: [hackathonId], references: [id])
   leader         User       @relation("TeamLeader", fields: [leaderId], references: [id])
   members        TeamMember[]
+  joinRequests   TeamJoinRequest[]
 }
 
 model TeamMember {
@@ -136,6 +146,20 @@ model TeamMember {
   joinedAt  DateTime @default(now())
 
   // Relations
+  team      Team     @relation(fields: [teamId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+}
+
+model TeamJoinRequest {
+  id        Int      @id @default(autoincrement())
+  teamId    Int
+  userId    Int
+  role      String?
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+
   team      Team     @relation(fields: [teamId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 

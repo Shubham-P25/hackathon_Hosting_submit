@@ -1,11 +1,53 @@
 
-import { Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { Link, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
 import { Button } from '../ui/Button';
+import { getToken, getMe } from '../api';
+import { setUserProfile, logout } from '../slices/userSlice';
 import { motion } from "framer-motion";
 
 export default function Landing() {
   const user = useSelector(state => state.user.user);
+    const navigate = useNavigate();
+
+    const dispatch = useDispatch();
+    const goToOrLogin = async (target) => {
+        // If user already present in store, navigate immediately
+        if (user) {
+            navigate(target);
+            return;
+        }
+
+        // If no token, redirect to login and preserve target in location state
+        const token = getToken();
+        if (!token) {
+            navigate('/login', { state: { next: target } });
+            return;
+        }
+
+        // Only attempt to hydrate profile once per session to avoid repeated network calls
+        const tried = sessionStorage.getItem('hydratedUser') === '1';
+        if (!tried) {
+            sessionStorage.setItem('hydratedUser', '1');
+            try {
+                const profile = await getMe();
+                if (profile && !profile.error) {
+                    dispatch(setUserProfile(profile));
+                    navigate(target);
+                    return;
+                }
+            } catch (err) {
+                // token invalid or network error: clear stored auth and send to login
+                dispatch(logout());
+                sessionStorage.removeItem('hydratedUser');
+                navigate('/login', { state: { next: target } });
+                return;
+            }
+        }
+
+        // If hydration already attempted and no user, go to login
+        navigate('/login', { state: { next: target } });
+    };
 
     return (
         <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-white via-blue-100 to-pink-100 relative overflow-hidden">
@@ -22,10 +64,10 @@ export default function Landing() {
                 {/* CTA Buttons */}
                 <div className="mt-10 flex gap-6">
                     <motion.div whileHover={{ scale: 1.08 }}>
-                        <Link to="/host/dashboard" className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 text-blue-900 px-7 py-3 rounded-xl font-bold shadow-lg hover:scale-105 transition">Create hackathons</Link>
+                        <button onClick={() => goToOrLogin('/host/dashboard')} className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 text-blue-900 px-7 py-3 rounded-xl font-bold shadow-lg hover:scale-105 transition">Create hackathons</button>
                     </motion.div>
                     <motion.div whileHover={{ scale: 1.08 }}>
-                        <Link to="/user/dashboard" className="inline-flex items-center gap-2 border border-blue-200 px-7 py-3 rounded-xl font-bold shadow-lg text-purple-900 bg-white/70 hover:bg-blue-50 transition">Browse hackathons</Link>
+                        <button onClick={() => goToOrLogin('/user/dashboard')} className="inline-flex items-center gap-2 border border-blue-200 px-7 py-3 rounded-xl font-bold shadow-lg text-purple-900 bg-white/70 hover:bg-blue-50 transition">Browse hackathons</button>
                     </motion.div>
                 </div>
 

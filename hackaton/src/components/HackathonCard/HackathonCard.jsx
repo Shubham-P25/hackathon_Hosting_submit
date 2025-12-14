@@ -54,7 +54,7 @@ export function HackathonCard({ hackathon }) {
                   variant="primary"
                   size="md"
                   className="shadow-lg hover:scale-105 transition-transform duration-200"
-                  onClick={() => navigate('/registration')}
+                  onClick={() => navigate(`/hackathons/${hackathon.id}/registration`)}
                 >
                   Apply Now
                 </Button>

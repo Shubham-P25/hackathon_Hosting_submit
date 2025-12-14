@@ -4,7 +4,6 @@ CREATE TABLE "public"."User" (
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
-    "gender" TEXT,
     "role" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -25,8 +24,10 @@ CREATE TABLE "public"."UserProfile" (
     "bio" TEXT,
     "dateOfBirth" TIMESTAMP(3),
     "domain" TEXT,
+    "gender" TEXT,
     "socialLinks" JSONB,
     "achievements" JSONB,
+    "profilePicUrl" TEXT,
 
     CONSTRAINT "UserProfile_pkey" PRIMARY KEY ("id")
 );
@@ -36,12 +37,15 @@ CREATE TABLE "public"."HostProfile" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "profession" TEXT,
+    "education" TEXT,
     "bio" TEXT,
     "collegeOrCompany" TEXT,
+    "clgNameorCmpName" TEXT,
     "domain" TEXT,
-    "achievements" JSONB,
-    "socialLinks" JSONB,
+    "achievements" TEXT,
+    "socialLinks" TEXT,
     "location" TEXT,
+    "profilePicUrl" TEXT,
 
     CONSTRAINT "HostProfile_pkey" PRIMARY KEY ("id")
 );
@@ -49,8 +53,12 @@ CREATE TABLE "public"."HostProfile" (
 -- CreateTable
 CREATE TABLE "public"."Hackathon" (
     "id" SERIAL NOT NULL,
+    "poster" TEXT,
+    "banner" TEXT,
+    "gallery" TEXT,
     "title" TEXT NOT NULL,
     "description" TEXT NOT NULL,
+    "overview" TEXT NOT NULL,
     "rules" JSONB NOT NULL DEFAULT '[]',
     "criteria" TEXT NOT NULL,
     "timeline" JSONB NOT NULL DEFAULT '{}',
@@ -66,6 +74,7 @@ CREATE TABLE "public"."Hackathon" (
     "startDate" TIMESTAMP(3) NOT NULL,
     "endDate" TIMESTAMP(3) NOT NULL,
     "location" TEXT,
+    "Ispaid" BOOLEAN NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "hostId" INTEGER NOT NULL,

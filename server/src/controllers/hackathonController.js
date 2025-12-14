@@ -1,7 +1,225 @@
-// Import Prisma client
-import { PrismaClient } from '@prisma/client';
 import { promises as fs } from 'fs';
 import prisma from "../utils/prismaClient.js";
+
+const sanitizeString = (value, fallback = "") => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : fallback;
+  }
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  return value;
+};
+
+const normalizeArrayInput = (value) => {
+  if (value == null) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+      return parsed ? [parsed] : [];
+    } catch {
+      return value.trim() ? [value.trim()] : [];
+    }
+  }
+  return [value];
+};
+
+const parseDateValue = (value, { fieldName, required = true, fallback = null } = {}) => {
+  if (value === undefined) {
+    if (!required) {
+      return fallback;
+    }
+    if (fallback) {
+      return fallback;
+    }
+    throw new Error(`${fieldName || 'Date'} is required`);
+  }
+
+  if (value === null || value === "") {
+    if (required) {
+      throw new Error(`${fieldName || 'Date'} cannot be empty`);
+    }
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid ${fieldName || 'date'} value`);
+  }
+  return date;
+};
+
+const normalizeRules = (input) => normalizeArrayInput(input)
+  .map((rule) => (typeof rule === "string" ? rule.trim() : rule))
+  .filter((rule) => (typeof rule === "string" ? rule.length > 0 : rule !== null && rule !== undefined));
+
+const normalizeSkills = (input) => normalizeArrayInput(input)
+  .map((skill) => (typeof skill === "string" ? skill.trim() : skill))
+  .filter((skill) => (typeof skill === "string" ? skill.length > 0 : skill !== null && skill !== undefined));
+
+const normalizeTimeline = (input) => normalizeArrayInput(input)
+  .map((phase) => {
+    if (typeof phase === "object" && phase !== null) {
+      return {
+        phase: sanitizeString(phase.phase || phase.title || phase.name || ""),
+        date: phase.date || phase.deadline || null,
+        description: sanitizeString(phase.description || phase.details || "")
+      };
+    }
+    return { description: sanitizeString(phase) };
+  })
+  .filter((phase) => phase.phase || phase.date || phase.description);
+
+const normalizeRounds = (input) => normalizeArrayInput(input)
+  .map((round) => {
+    if (typeof round === "object" && round !== null) {
+      return {
+        name: sanitizeString(round.name || round.title || ""),
+        description: sanitizeString(round.description || round.details || ""),
+        duration: sanitizeString(round.duration || "")
+      };
+    }
+    return { description: sanitizeString(round) };
+  })
+  .filter((round) => round.name || round.description || round.duration);
+
+const normalizePrizes = (input) => normalizeArrayInput(input)
+  .map((prize) => {
+    if (typeof prize === "object" && prize !== null) {
+      return {
+        type: sanitizeString(prize.type || prize.position || ""),
+        amount: sanitizeString(prize.amount || prize.value || ""),
+        details: sanitizeString(prize.details || prize.description || "")
+      };
+    }
+    return { type: sanitizeString(prize) };
+  })
+  .filter((prize) => prize.type || prize.amount || prize.details);
+
+const normalizeFaqs = (input) => normalizeArrayInput(input)
+  .map((faq) => {
+    if (typeof faq === "object" && faq !== null) {
+      return {
+        question: sanitizeString(faq.question || faq.q || ""),
+        answer: sanitizeString(faq.answer || faq.a || "")
+      };
+    }
+    return { question: sanitizeString(faq), answer: "" };
+  })
+  .filter((faq) => faq.question || faq.answer);
+
+const normalizeStringEntries = (input) => normalizeArrayInput(input)
+  .map((entry) => (typeof entry === "string" ? entry.trim() : entry))
+  .filter((entry) => (typeof entry === "string" ? entry.length > 0 : entry !== null && entry !== undefined));
+
+const buildHackathonData = (body, {
+  hostId,
+  existing,
+  allowMissingDates = false
+} = {}) => {
+  const hasOwn = (key) => Object.prototype.hasOwnProperty.call(body, key);
+  const pick = (key, fallback) => (hasOwn(key) ? body[key] : fallback);
+
+  const rawStartDate = pick('startDate', existing?.startDate);
+  const rawEndDate = pick('endDate', existing?.endDate);
+
+  const startDate = parseDateValue(rawStartDate, {
+    fieldName: 'start date',
+    required: !allowMissingDates,
+    fallback: existing?.startDate ?? null
+  });
+
+  const endDate = parseDateValue(rawEndDate, {
+    fieldName: 'end date',
+    required: !allowMissingDates,
+    fallback: existing?.endDate ?? null
+  });
+
+  if (startDate && endDate && endDate <= startDate) {
+    throw new Error('End date must be after start date');
+  }
+
+  const rules = hasOwn('rules') ? normalizeRules(body.rules) : existing?.rules ?? [];
+  const skillsRequired = hasOwn('skillsRequired') ? normalizeSkills(body.skillsRequired) : existing?.skillsRequired ?? [];
+  const timeline = hasOwn('timeline') ? normalizeTimeline(body.timeline) : existing?.timeline ?? [];
+  const rounds = hasOwn('rounds') ? normalizeRounds(body.rounds) : existing?.rounds ?? [];
+  const prizes = hasOwn('prizes') ? normalizePrizes(body.prizes) : existing?.prizes ?? [];
+  const faqs = hasOwn('faqs') ? normalizeFaqs(body.faqs) : existing?.faqs ?? [];
+  const updates = hasOwn('updates') ? normalizeStringEntries(body.updates) : existing?.updates ?? [];
+  const helpContact = hasOwn('helpContact') ? normalizeStringEntries(body.helpContact) : existing?.helpContact ?? [];
+  const gallerySource = hasOwn('galleryUrl')
+    ? body.galleryUrl
+    : hasOwn('gallery')
+      ? body.gallery
+      : existing?.gallery ?? [];
+  const gallery = normalizeStringEntries(gallerySource);
+
+  const teamSizeValue = pick('teamSize', existing?.teamSize ?? null);
+  const parsedTeamSize = teamSizeValue === null || teamSizeValue === '' || teamSizeValue === undefined
+    ? null
+    : parseInt(teamSizeValue, 10);
+
+  if (parsedTeamSize !== null && Number.isNaN(parsedTeamSize)) {
+    throw new Error('Team size must be a number');
+  }
+
+  const isPaidRaw = hasOwn('Is_Paid')
+    ? body.Is_Paid
+    : hasOwn('Ispaid')
+      ? body.Ispaid
+      : hasOwn('isPaid')
+        ? body.isPaid
+        : existing?.Ispaid;
+  const isPaid = typeof isPaidRaw === 'string' ? isPaidRaw === 'true' : Boolean(isPaidRaw);
+
+  const locationRaw = hasOwn('location') ? body.location : existing?.location ?? null;
+  const location = locationRaw === null || locationRaw === undefined || locationRaw === ''
+    ? null
+    : sanitizeString(locationRaw);
+
+  const posterValue = hasOwn('posterUrl') ? body.posterUrl : hasOwn('poster') ? body.poster : existing?.poster ?? null;
+  const bannerValue = hasOwn('bannerUrl') ? body.bannerUrl : hasOwn('banner') ? body.banner : existing?.banner ?? null;
+
+  const cleanMedia = (value) => {
+    if (value === null || value === undefined) return null;
+    const sanitized = sanitizeString(value, '');
+    return sanitized.length ? sanitized : null;
+  };
+
+  const data = {
+    title: sanitizeString(pick('title', existing?.title)),
+    description: sanitizeString(pick('description', existing?.description)),
+    overview: sanitizeString(pick('overview', existing?.overview || existing?.description)),
+    rules,
+    criteria: sanitizeString(pick('criteria', existing?.criteria ?? "")),
+    timeline,
+    rounds,
+    prizes,
+    faqs,
+    updates,
+    helpContact,
+    mode: sanitizeString(pick('mode', existing?.mode || 'ONLINE'), 'ONLINE'),
+    teamSize: parsedTeamSize,
+    domain: sanitizeString(pick('domain', existing?.domain)),
+    skillsRequired,
+    startDate,
+    endDate,
+    location,
+    Ispaid: isPaid,
+    poster: cleanMedia(posterValue),
+    banner: cleanMedia(bannerValue),
+    gallery
+  };
+
+  if (typeof hostId === 'number') {
+    data.hostId = hostId;
+  }
+
+  return data;
+};
 
 // CREATE Hackathon
 export const createHackathon = async (req, res) => {
@@ -13,29 +231,10 @@ export const createHackathon = async (req, res) => {
     if (!user || user.role !== 'HOST') {
       return res.status(403).json({ error: "Only hosts can create hackathons" });
     }
-
-    // Format the data for Prisma
-    const hackathonData = {
-      title: req.body.title,
-      description: req.body.description,
-      rules: req.body.rules || [],
-      criteria: req.body.criteria,
-      timeline: req.body.timeline || {},
-      rounds: req.body.rounds || [],
-      prizes: req.body.prizes || [],
-      faqs: req.body.faqs || [],
-      updates: req.body.updates || [],
-      helpContact: req.body.helpContact || [],
-      mode: req.body.mode || 'ONLINE',
-      teamSize: req.body.teamSize ? parseInt(req.body.teamSize) : null,
-      domain: req.body.domain,
-      skillsRequired: req.body.skillsRequired || [],
-      startDate: new Date(req.body.startDate),
-      endDate: new Date(req.body.endDate),
-      location: req.body.location,
-      hostId: req.user.id
-      // Removed participantCount as it's not needed for creation
-    };
+    const hackathonData = buildHackathonData(req.body, {
+      hostId: req.user.id,
+      allowMissingDates: false
+    });
 
     const hackathon = await prisma.hackathon.create({
       data: hackathonData
@@ -79,24 +278,41 @@ export const getHackathons = async (req, res) => {
   }
 };
 
-// UPDATE Hackathon (admin only)
+// UPDATE Hackathon (host or admin)
 export const updateHackathon = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { title, description, startDate, endDate } = req.body;
+    const hackathonId = Number(req.params.id);
 
-    const hackathon = await prisma.hackathon.update({
-      where: { id: Number(id) },
-      data: {
-        title,
-        description,
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
-      },
+    if (Number.isNaN(hackathonId)) {
+      return res.status(400).json({ error: 'Invalid hackathon ID' });
+    }
+
+    const existing = await prisma.hackathon.findUnique({ where: { id: hackathonId } });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Hackathon not found' });
+    }
+
+    const isOwner = req.user.role === 'HOST' && existing.hostId === req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to update this hackathon' });
+    }
+
+    const data = buildHackathonData(req.body, {
+      existing,
+      allowMissingDates: true
     });
 
-    res.json(hackathon);
+    const updated = await prisma.hackathon.update({
+      where: { id: hackathonId },
+      data
+    });
+
+    res.json(updated);
   } catch (err) {
+    console.error('Error updating hackathon:', err);
     res.status(500).json({ error: err.message });
   }
 };

@@ -64,7 +64,7 @@ export function UserProfileView({ user, formatDateTime }) {
             <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-gray-200">
               {user.profile?.profilePicUrl ? (
                 <img
-                  src={`http://localhost:5000${user.profile.profilePicUrl}`}
+                  src={user.profile.profilePicUrl}
                   alt={user.name}
                   className="w-full h-full object-cover cursor-pointer"
                   onClick={() => setShowImagePreview(true)}
@@ -218,7 +218,7 @@ export function UserProfileView({ user, formatDateTime }) {
         >
           <div className="relative max-w-3xl w-full">
             <img
-              src={`http://localhost:5000${user.profile.profilePicUrl}`}
+              src={user.profile.profilePicUrl}
               alt={user.name}
               className="w-full h-auto rounded-lg"
             />

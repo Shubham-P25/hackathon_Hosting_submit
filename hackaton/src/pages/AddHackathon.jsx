@@ -22,7 +22,7 @@ export default function AddHackathon() {
     },
     {
       label: 'Prizes & FAQs',
-      fields: ['prizes', 'faqs'],
+      fields: ['prizes', 'faqs', 'gallery'],
     },
     {
       label: 'Contact & Mode',
@@ -33,6 +33,7 @@ export default function AddHackathon() {
   const [form, setForm] = useState({
     poster: null, // file
     banner: null, // file
+    gallery: [], // array of files
     title: "",
     description: "",
     overview: "",
@@ -55,9 +56,17 @@ export default function AddHackathon() {
   });
   const posterInputRef = useRef();
   const bannerInputRef = useRef();
+  const galleryInputRef = useRef();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', type: 'info' });
+  const [focus, setFocus] = useState({
+    title: false,
+    domain: false,
+    description: false,
+    overview: false,
+    location: false,
+  });
   const token = useSelector(state => state.user.token);
   const navigate = useNavigate();
 
@@ -74,6 +83,10 @@ export default function AddHackathon() {
   const handleBannerChange = (e) => {
     const file = e.target.files[0];
     setForm(prev => ({ ...prev, banner: file }));
+  };
+  const handleGalleryChange = (e) => {
+    const files = Array.from(e.target.files);
+    setForm(prev => ({ ...prev, gallery: files }));
   };
   
   const handleChange = e => {
@@ -103,64 +116,144 @@ export default function AddHackathon() {
   };
 
   const validateForm = (data) => {
-    if (!data.title || !data.description || !data.overview || !data.domain) {
-      setMessage("Please fill in all required fields");
-      return false;
+    if (!data.title?.trim() || !data.description?.trim() || !data.overview?.trim() || !data.domain?.trim()) {
+      return "Please fill in all required fields";
+    }
+    if (!data.startDate || !data.endDate) {
+      return "Start and end dates are required";
     }
     if (new Date(data.endDate) <= new Date(data.startDate)) {
-      setMessage("End date must be after start date");
-      return false;
+      return "End date must be after start date";
     }
-    return true;
+    return null;
   };
 
   const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
+    
     try {
+      const validationError = validateForm(form);
+      if (validationError) {
+        setMessage(validationError);
+        setToast({ open: true, message: validationError, type: "error" });
+        setLoading(false);
+        return;
+      }
+
+      let imageUrls = {};
+      
+      // Step 1: Upload images to Cloudinary if they exist
+      if (form.poster || form.banner || (form.gallery && form.gallery.length > 0)) {
+        setToast({ open: true, message: "Uploading images to Cloudinary...", type: "info" });
+        
+        const imageFormData = new FormData();
+        if (form.poster) imageFormData.append('poster', form.poster);
+        if (form.banner) imageFormData.append('banner', form.banner);
+        if (form.gallery && form.gallery.length > 0) {
+          form.gallery.forEach((file) => {
+            imageFormData.append('gallery', file);
+          });
+        }
+        
+        // Import the upload function
+        const { uploadHackathonImages } = await import('../api/hackathon');
+        const uploadResult = await uploadHackathonImages(imageFormData);
+        
+        if (uploadResult.success && uploadResult.data) {
+          imageUrls = uploadResult.data;
+          setToast({ open: true, message: "Images uploaded successfully!", type: "success" });
+        } else {
+          throw new Error(uploadResult.error || "Failed to upload images");
+        }
+      }
+      
+      // Step 2: Format hackathon data (excluding file objects)
       const formattedData = {
-        ...form,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        overview: form.overview.trim(),
         startDate: new Date(form.startDate).toISOString(),
         endDate: new Date(form.endDate).toISOString(),
-        rules: Array.isArray(form.rules) ? form.rules.filter(Boolean) : [],
-        skillsRequired: Array.isArray(form.skillsRequired) ? form.skillsRequired.filter(Boolean) : [],
-        teamSize: form.teamSize ? parseInt(form.teamSize) : null,
-        helpContact: [form.helpContact].filter(Boolean),
-        updates: Array.isArray(form.updates) ? form.updates.filter(Boolean) : [],
+  location: form.location?.trim() || null,
+        mode: form.mode,
+        domain: form.domain.trim(),
+        rules: Array.isArray(form.rules)
+          ? form.rules.map(rule => rule.trim()).filter(Boolean)
+          : [],
+        skillsRequired: Array.isArray(form.skillsRequired)
+          ? form.skillsRequired.map(skill => skill.trim()).filter(Boolean)
+          : [],
+        teamSize: form.teamSize ? parseInt(form.teamSize, 10) : null,
+        criteria: form.criteria.trim(),
+        timeline: Array.isArray(form.timeline)
+          ? form.timeline
+              .map(phase => ({
+                phase: phase.phase?.trim() || "",
+                date: phase.date || "",
+                description: phase.description?.trim() || ""
+              }))
+              .filter(phase => phase.phase || phase.date || phase.description)
+          : [],
+        rounds: Array.isArray(form.rounds)
+          ? form.rounds
+              .map(round => ({
+                name: round.name?.trim() || "",
+                description: round.description?.trim() || ""
+              }))
+              .filter(round => round.name || round.description)
+          : [],
+        prizes: Array.isArray(form.prizes)
+          ? form.prizes
+              .map(prize => ({
+                type: prize.type?.trim() || "",
+                amount: prize.amount?.trim() || "",
+                details: prize.details?.trim() || ""
+              }))
+              .filter(prize => prize.type || prize.amount || prize.details)
+          : [],
+        faqs: Array.isArray(form.faqs)
+          ? form.faqs
+              .map(faq => ({
+                question: faq.question?.trim() || "",
+                answer: faq.answer?.trim() || ""
+              }))
+              .filter(faq => faq.question || faq.answer)
+          : [],
+        updates: Array.isArray(form.updates)
+          ? form.updates.map(update => update.trim()).filter(Boolean)
+          : [],
+        helpContact: Array.isArray(form.helpContact)
+          ? form.helpContact.map(contact => contact.trim()).filter(Boolean)
+          : (form.helpContact
+              ? form.helpContact
+                  .split(/[\n,;]/)
+                  .map(contact => contact.trim())
+                  .filter(Boolean)
+              : []),
         Is_Paid: !!form.Is_Paid
       };
-
-      // Use FormData for file upload
-      const fd = new FormData();
-      Object.entries(formattedData).forEach(([key, value]) => {
-        if ((key === 'poster' || key === 'banner') && value) {
-          fd.append(key, value);
-        } else if (typeof value === 'object' && value !== null && !(value instanceof File)) {
-          fd.append(key, JSON.stringify(value));
-        } else if (value !== undefined) {
-          fd.append(key, value);
-        }
-      });
-
-      const res = await fetch("http://localhost:5000/api/hackathons", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: fd
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage("Hackathon created successfully!");
-        setToast({ open: true, message: "Hackathon created successfully!", type: "success" });
-        setTimeout(() => navigate("/profile"), 2000);
-      } else {
-        setMessage(data.error || data.message || "Failed to create hackathon");
-        setToast({ open: true, message: data.error || data.message || "Failed to create hackathon", type: "error" });
+      
+      // Step 3: Create hackathon with image URLs
+      setToast({ open: true, message: "Creating hackathon...", type: "info" });
+      
+      const { createHackathonWithImages } = await import('../api/hackathon');
+      const result = await createHackathonWithImages(formattedData, imageUrls);
+      
+      if (!result || result.error) {
+        console.error('Create hackathon API response:', result);
+        const serverMessage = result?.message || (typeof result?.error === 'string' ? result.error : null);
+        throw new Error(serverMessage || "Failed to create hackathon. Please try again.");
       }
+      
+      setMessage("Hackathon created successfully!");
+      setToast({ open: true, message: "Hackathon created successfully!", type: "success" });
+      setTimeout(() => navigate("/profile"), 2000);
     } catch (error) {
-      setMessage("Network error. Please try again.");
-      setToast({ open: true, message: "Network error. Please try again.", type: "error" });
+      console.error('Create hackathon error:', error);
+      const errorMsg = error.message || "Network error. Please try again.";
+      setMessage(errorMsg);
+      setToast({ open: true, message: errorMsg, type: "error" });
     } finally {
       setLoading(false);
     }
@@ -183,23 +276,23 @@ export default function AddHackathon() {
   // Gradient utility for all text
   const allTextGradient = "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent";
 
-  // Add focus state for animated placeholders
-  const [focus, setFocus] = useState({
-    title: false,
-    domain: false,
-    description: false,
-    overview: false,
-    location: false,
-  });
-
   // Helper for animated placeholder
   const getPlaceholder = (field, defaultText, focusText) =>
     focus[field] ? focusText : defaultText;
 
   return (
-    <motion.div className="max-w-4xl mx-auto py-10 px-4" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+    <div className="w-full min-h-screen">
+    <motion.div className="max-w-5xl mx-auto py-10 px-4" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
       <Toast isOpen={toast.open} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, open: false })} />
-      <motion.h2 className="text-4xl font-extrabold mb-8 text-center bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent drop-shadow-lg" initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ duration: 0.6 }}>Create New Hackathon</motion.h2>
+      
+      {/* Single Card Container for Everything */}
+      <motion.div 
+        className="p-20 rounded-2xl shadow-2xl bg-gradient-to-br from-yellow-50 to-blue-50 border border-blue-200"
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ duration: 0.6 }}
+      >
+        <motion.h2 className="text-5xl font-extrabold mb-8 text-center bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent drop-shadow-lg" initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ duration: 0.6 }}>Create New Hackathon</motion.h2>
       {/* Cool Progress Slider */}
       <div className="w-full mb-10">
         <div className="relative flex items-center justify-between">
@@ -207,13 +300,16 @@ export default function AddHackathon() {
           {steps.map((s, i) => (
             <div key={s.label} className="flex flex-col items-center flex-1">
               <motion.div
-                className={`z-10 w-10 h-10 flex items-center justify-center rounded-full border-4 transition-all duration-300 ${i < step ? 'bg-gradient-to-br from-blue-400 to-pink-400 border-pink-400 shadow-lg scale-110' : i === step ? 'bg-gradient-to-br from-blue-500 to-purple-500 border-blue-500 shadow-xl scale-125' : 'bg-gray-200 border-gray-300 scale-100'}`}
+                className={`z-10 w-10 h-10 flex items-center justify-center rounded-full border-4 transition-all duration-300 cursor-pointer ${i < step ? 'bg-gradient-to-br from-blue-400 to-pink-400 border-pink-400 shadow-lg scale-110' : i === step ? 'bg-gradient-to-br from-blue-500 to-purple-500 border-blue-500 shadow-xl scale-125' : 'bg-gray-200 border-gray-300 scale-100 hover:bg-gray-300 hover:scale-105'}`}
                 animate={{ scale: i === step ? 1.15 : 1, boxShadow: i === step ? '0 0 0 4px #c4b5fd55' : 'none' }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                onClick={() => setStep(i)}
+                whileHover={{ scale: i === step ? 1.15 : 1.1 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <span className={`text-white text-lg font-bold`}>{stepIcons[i]}</span>
               </motion.div>
-              <span className={`mt-2 text-xs font-semibold ${i <= step ? 'text-blue-700' : 'text-gray-400'}`}>{s.label}</span>
+              <span className={`mt-2 text-xs font-semibold cursor-pointer ${i <= step ? 'text-blue-700' : 'text-gray-400'} hover:text-blue-500 transition-colors`} onClick={() => setStep(i)}>{s.label}</span>
             </div>
           ))}
           {/* Progress Bar (behind circles) */}
@@ -240,18 +336,19 @@ export default function AddHackathon() {
                   <div className="flex flex-col items-center gap-2 w-full md:w-1/2">
                     <label className={`block text-lg font-semibold text-blue-700 ${fieldLabelGradient}`}>Poster Image</label>
                     <input type="file" accept="image/*" onChange={handlePosterChange} ref={posterInputRef} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                    {form.poster && (
+                    {form.poster && form.poster instanceof File && (
                       <img src={URL.createObjectURL(form.poster)} alt="Poster Preview" className="mt-2 rounded-xl shadow-lg max-h-40 object-contain" />
                     )}
                   </div>
                   <div className="flex flex-col items-center gap-2 w-full md:w-1/2">
                     <label className={`block text-lg font-semibold text-purple-700 ${fieldLabelGradient}`}>Banner Image</label>
                     <input type="file" accept="image/*" onChange={handleBannerChange} ref={bannerInputRef} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" />
-                    {form.banner && (
+                    {form.banner && form.banner instanceof File && (
                       <img src={URL.createObjectURL(form.banner)} alt="Banner Preview" className="mt-2 rounded-xl shadow-lg max-h-40 object-contain" />
                     )}
                   </div>
                 </div>
+
               </motion.section>
               {/* Basic Details & Dates */}
               <motion.section className="space-y-4 p-8 rounded-2xl shadow-2xl bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 border border-blue-200 mt-8" whileHover={{ scale: 1.01 }}>
@@ -450,6 +547,48 @@ export default function AddHackathon() {
                 ))}
                 <button type="button" onClick={() => addArrayItem("faqs", { question: "", answer: "" })} className="rounded-xl px-6 py-2 font-bold shadow-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white border-none transition-all duration-200 hover:from-pink-500 hover:to-blue-500 hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-pink-200 active:scale-95 active:shadow-inner px-4 py-2">Add FAQ</button>
               </motion.section>
+
+              {/* Gallery Images Section */}
+              <motion.section className="space-y-4 p-8 rounded-2xl shadow-2xl bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 border border-blue-200 mt-8" whileHover={{ scale: 1.01 }}>
+                <h3 className="text-xl font-semibold border-b pb-2">Gallery Images</h3>
+                <div className="flex flex-col items-center gap-4 w-full">
+                  <label className={`block text-lg font-semibold text-pink-700 ${fieldLabelGradient}`}>Upload Multiple Gallery Images</label>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    multiple 
+                    onChange={handleGalleryChange} 
+                    ref={galleryInputRef} 
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100" 
+                  />
+                  {form.gallery && form.gallery.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                      {form.gallery.filter(file => file instanceof File).map((file, index) => (
+                        <div key={index} className="relative">
+                          <img 
+                            src={URL.createObjectURL(file)} 
+                            alt={`Gallery Preview ${index + 1}`} 
+                            className="rounded-xl shadow-lg h-32 w-full object-cover" 
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newGallery = form.gallery.filter((_, i) => i !== index);
+                              setForm(prev => ({ ...prev, gallery: newGallery }));
+                            }}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-sm text-gray-600 text-center">
+                    Selected {form.gallery?.filter(file => file instanceof File).length || 0} image(s)
+                  </p>
+                </div>
+              </motion.section>
             </>
           )}
           {step === 4 && (
@@ -509,6 +648,9 @@ export default function AddHackathon() {
           )}
         </div>
       </motion.form>
+      </motion.div>
     </motion.div>
-  );}
+    </div>
+  );
+}
 

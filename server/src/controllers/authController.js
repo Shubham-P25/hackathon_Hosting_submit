@@ -143,6 +143,40 @@ export const getMe = async (req, res) => {
                 }
               }
             }
+          },
+          teamMemberships: {
+            include: {
+              team: {
+                include: {
+                  hackathon: true,
+                  leader: {
+                    select: { id: true, name: true, email: true }
+                  },
+                  members: {
+                    include: {
+                      user: {
+                        select: { id: true, name: true, email: true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          ledTeams: {
+            include: {
+              hackathon: true,
+              leader: {
+                select: { id: true, name: true, email: true }
+              },
+              members: {
+                include: {
+                  user: {
+                    select: { id: true, name: true, email: true }
+                  }
+                }
+              }
+            }
           }
         }
       });

@@ -7,10 +7,10 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const userId = req.user.id;
-    const userType = req.user.role.toLowerCase();
     const timestamp = Date.now();
     const extension = path.extname(file.originalname);
-    cb(null, `${userType}_${userId}_profile_${timestamp}${extension}`);
+    const fileType = file.fieldname; // 'poster', 'banner', 'profilePic', etc.
+    cb(null, `${userId}_${fileType}_${timestamp}${extension}`);
   }
 });
 
@@ -18,11 +18,24 @@ export const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const allowedTypes = [
+      'image/jpeg',
+    'image/jpg', 
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/bmp',
+    'image/svg+xml',
+    'image/avif',     // Added AVIF support
+    'image/heic',     // Added HEIC support (iOS photos)
+    'image/heif'   // Added HEIF support (iOS photos)
+    ];
+    console.log('File mimetype:', file.mimetype); // Debug log
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG and GIF allowed.'));
+      console.error('Invalid file type:', file.mimetype);
+      cb(new Error(`Invalid file type: ${file.mimetype}. Only JPEG, PNG, GIF, WebP, BMP and SVG allowed.`));
     }
   }
 });

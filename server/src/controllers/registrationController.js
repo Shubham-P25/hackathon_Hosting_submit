@@ -55,6 +55,42 @@ export const registerForHackathon = async (req, res) => {
   }
 };
 
+// Check if user is registered for a specific hackathon
+export const checkRegistrationStatus = async (req, res) => {
+  try {
+    const { hackathonId } = req.params;
+
+    if (!hackathonId) {
+      return res.status(400).json({
+        error: true,
+        message: "Hackathon ID is required",
+      });
+    }
+
+    const registration = await prisma.registration.findFirst({
+      where: {
+        userId: req.user.id,
+        hackathonId: parseInt(hackathonId, 10),
+      },
+      select: {
+        id: true,
+        createdAt: true,
+      },
+    });
+
+    return res.json({
+      registered: Boolean(registration),
+      registration,
+    });
+  } catch (error) {
+    console.error("Check registration status error:", error);
+    return res.status(500).json({
+      error: true,
+      message: "Failed to verify registration status",
+    });
+  }
+};
+
 // Get all registrations
 export const getRegistrations = async (req, res) => {
   try {

@@ -41,7 +41,7 @@ export default function UserProfile() {
           profession: profile.profession || "",
           domain: profile.domain || "",
           gender: profile.gender || "",
-          profilePic: profile.profilePic || "",
+          profilePicUrl: profile.profilePicUrl || "",
         };
         setUser(merged);
         setFormData(merged);
@@ -61,7 +61,7 @@ export default function UserProfile() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, profilePic: reader.result }));
+        setFormData(prev => ({ ...prev, profilePicUrl: reader.result }));
       };
       reader.readAsDataURL(file);
     }
@@ -115,7 +115,7 @@ export default function UserProfile() {
       profession: formData.profession,
       domain: formData.domain,
       gender: formData.gender,
-      profilePic: formData.profilePic,
+      profilePicUrl: formData.profilePicUrl,
     };
     // Only add dateOfBirth if valid
     if (formData.dob) {
@@ -161,7 +161,7 @@ export default function UserProfile() {
         ...user,
         ...updatedProfile,
         ...updatedUser,
-        role: user.role, // keep role from user table
+        role: user.role, // keep role from user table - ALWAYS preserve this
         dob: updatedProfile.dateOfBirth,
         location: updatedProfile.location,
         bio: updatedProfile.bio,
@@ -175,12 +175,16 @@ export default function UserProfile() {
         profession: updatedProfile.profession,
         domain: updatedProfile.domain,
         gender: updatedProfile.gender,
-        profilePic: updatedProfile.profilePic,
+        profilePicUrl: updatedProfile.profilePicUrl,
         name: updatedUser.name || formData.name,
         email: updatedUser.email || formData.email,
       };
       setUser(merged);
-      setFormData(merged);
+      // Ensure role is preserved in form data as well
+      setFormData({
+        ...merged,
+        role: user.role // Explicitly preserve role
+      });
       setIsEditing(false);
       setToastMsg('Profile updated!');
       setShowToast(true);
@@ -212,8 +216,8 @@ export default function UserProfile() {
           <div className="flex flex-col sm:flex-row items-center gap-8 mb-10">
             <div className="relative group">
               <div className="h-36 w-36 rounded-full border-4 border-white overflow-hidden bg-gradient-to-br from-pink-200 to-red-200 flex items-center justify-center shadow-xl">
-                {formData.profilePic ? (
-                  <img src={formData.profilePic} alt={formData.name} className="h-full w-full object-cover" />
+                {formData.profilePicUrl ? (
+                  <img src={formData.profilePicUrl} alt={formData.name} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-5xl font-bold text-gray-400">
                     {formData.name?.charAt(0) || ''}
@@ -233,7 +237,7 @@ export default function UserProfile() {
               <h1 className="text-3xl font-bold text-gray-900">{formData.name}</h1>
               <p className="text-gray-600 text-lg">{formData.email}</p>
               <div className="flex flex-wrap gap-4 mt-2">
-                <span className="bg-gradient-to-r from-red-200 to-pink-100 px-3 py-1 h-8 rounded-full text-gray-700 text-sm font-semibold shadow">Role: {formData.role}</span>
+                <span className="bg-gradient-to-r from-red-200 to-pink-100 px-3 py-1 h-8 rounded-full text-gray-700 text-sm font-semibold shadow">Role: {user?.role || 'User'}</span>
                 {!isEditing ? (
                   <span className="bg-gradient-to-r from-pink-100 to-red-100 px-3 py-1 rounded-full text-gray-700 text-sm font-semibold shadow">Gender: {formData.gender || 'N/A'}</span>
                 ) : (

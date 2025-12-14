@@ -2,7 +2,7 @@ import express from "express";
 import { createHackathon, getHackathons, updateHackathon, deleteHackathon } from "../controllers/hackathonController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 import { upload } from '../middleware/uploadMiddleware.js';
-import { uploadImages, saveImagesInDb } from '../controllers/uploadController.js';
+import { uploadImages, uploadAndSaveImages } from '../controllers/uploadController.js';
 import { getHackathonImage } from "../controllers/imageController.js";
 import prisma from "../utils/prismaClient.js";
 
@@ -25,19 +25,21 @@ router.post('/upload',
   protect, 
   upload.fields([
     { name: 'banner', maxCount: 1 },
-    { name: 'poster', maxCount: 1 }
+    { name: 'poster', maxCount: 1 },
+    { name: 'gallery', maxCount: 10 }
   ]), 
   uploadImages
 );
 
-// Add test endpoint to save images in DB
-router.post('/save-images', 
+// Upload images to Cloudinary and save URLs to database
+router.post('/upload-and-save', 
   protect, 
   upload.fields([
     { name: 'banner', maxCount: 1 },
-    { name: 'poster', maxCount: 1 }
+    { name: 'poster', maxCount: 1 },
+    { name: 'gallery', maxCount: 10 }
   ]),
-  saveImagesInDb
+  uploadAndSaveImages
 );
 
 // serve hackathon images
@@ -47,6 +49,11 @@ router.get('/image/:id/:type', getHackathonImage);
 router.get("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    
+    // Validate that id is a valid number
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid hackathon ID" });
+    }
     
     const hackathon = await prisma.hackathon.findUnique({
       where: { id },

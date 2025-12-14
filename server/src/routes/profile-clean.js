@@ -150,56 +150,20 @@ router.get("/host/profile", protect, async (req, res) => {
 router.patch("/host/profile", protect, async (req, res) => {
   try {
     const userId = req.user.id;
-    const data = { ...req.body };
-    
-    console.log('Host Profile PATCH - Received data:', data);
+    const profileData = { ...req.body };
 
-    // Separate user fields from profile fields
-    const userFields = {};
-    const profileFields = {};
-
-    // User table fields
-    if (data.name !== undefined) userFields.name = data.name;
-    if (data.email !== undefined) userFields.email = data.email;
-
-    // HostProfile table fields
-    const hostProfileColumns = ['profession', 'education', 'bio', 'collegeOrCompany', 'clgNameorCmpName', 'domain', 'location', 'profilePicUrl', 'achievements', 'socialLinks'];
-    
-    hostProfileColumns.forEach(field => {
-      if (data[field] !== undefined) {
-        profileFields[field] = data[field];
-      }
-    });
-
-    // Handle JSON fields - convert to strings for database
-    if (typeof profileFields.socialLinks === 'object') {
-      profileFields.socialLinks = JSON.stringify(profileFields.socialLinks);
-    }
-    if (Array.isArray(profileFields.achievements)) {
-      profileFields.achievements = JSON.stringify(profileFields.achievements);
+    // Handle socialLinks as JSON
+    if (typeof profileData.socialLinks === 'object') {
+      profileData.socialLinks = JSON.stringify(profileData.socialLinks);
     }
 
-    // Update user table if needed
-    let updatedUser = null;
-    if (Object.keys(userFields).length > 0) {
-      updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: userFields
-      });
-    }
-
-    // Update/create host profile
     const updatedProfile = await prisma.hostProfile.upsert({
       where: { userId },
-      update: profileFields,
-      create: { userId, ...profileFields }
+      update: profileData,
+      create: { userId, ...profileData }
     });
 
-    // Return both user and profile data
-    res.json({
-      user: updatedUser,
-      hostProfile: updatedProfile
-    });
+    res.json(updatedProfile);
   } catch (error) {
     console.error('Update host profile error:', error);
     res.status(500).json({ error: "Failed to update host profile" });
@@ -210,13 +174,13 @@ router.patch("/host/profile", protect, async (req, res) => {
 router.put("/host/profile", protect, upload.single('profilePic'), async (req, res) => {
   try {
     const userId = req.user.id;
-    let data = JSON.parse(req.body.data || '{}');
+    let profileData = JSON.parse(req.body.data || '{}');
 
     // Upload profile picture to Cloudinary if provided
     if (req.file) {
       try {
         const profilePicUrl = await uploadToCloudinary(req.file);
-        data.profilePicUrl = profilePicUrl;
+        profileData.profilePicUrl = profilePicUrl;
         
         // Clean up temporary file
         await fs.unlink(req.file.path).catch(() => {});
@@ -226,52 +190,18 @@ router.put("/host/profile", protect, upload.single('profilePic'), async (req, re
       }
     }
 
-    // Separate user fields from profile fields
-    const userFields = {};
-    const profileFields = {};
-
-    // User table fields
-    if (data.name !== undefined) userFields.name = data.name;
-    if (data.email !== undefined) userFields.email = data.email;
-
-    // HostProfile table fields
-    const hostProfileColumns = ['profession', 'education', 'bio', 'collegeOrCompany', 'clgNameorCmpName', 'domain', 'location', 'profilePicUrl', 'achievements', 'socialLinks'];
-    
-    hostProfileColumns.forEach(field => {
-      if (data[field] !== undefined) {
-        profileFields[field] = data[field];
-      }
-    });
-
-    // Handle JSON fields - convert to strings for database
-    if (typeof profileFields.socialLinks === 'object') {
-      profileFields.socialLinks = JSON.stringify(profileFields.socialLinks);
-    }
-    if (Array.isArray(profileFields.achievements)) {
-      profileFields.achievements = JSON.stringify(profileFields.achievements);
+    // Handle socialLinks
+    if (typeof profileData.socialLinks === 'object') {
+      profileData.socialLinks = JSON.stringify(profileData.socialLinks);
     }
 
-    // Update user table if needed
-    let updatedUser = null;
-    if (Object.keys(userFields).length > 0) {
-      updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: userFields
-      });
-    }
-
-    // Update/create host profile
     const updatedProfile = await prisma.hostProfile.upsert({
       where: { userId },
-      update: profileFields,
-      create: { userId, ...profileFields }
+      update: profileData,
+      create: { userId, ...profileData }
     });
 
-    // Return both user and profile data
-    res.json({
-      user: updatedUser,
-      hostProfile: updatedProfile
-    });
+    res.json(updatedProfile);
   } catch (error) {
     console.error('Host profile update error:', error);
     res.status(500).json({ error: "Failed to update host profile" });

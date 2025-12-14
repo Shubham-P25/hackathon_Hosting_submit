@@ -1,23 +1,27 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { login, getMe, register, setToken, getToken } from "../api";
+import { createSlice } from "@reduxjs/toolkit";
+import { getToken } from "../api/auth";
 
-export const loginUser = createAsyncThunk("user/loginUser", async (data) => {
-  const res = await login(data);
-  if (res.token) setToken(res.token);
-  return res;
-});
+const storedToken = getToken();
+let storedUser = null;
 
-export const fetchProfile = createAsyncThunk("user/fetchProfile", async () => {
-  return await getMe();
-});
+try {
+  const raw = localStorage.getItem("userInfo");
+  storedUser = raw ? JSON.parse(raw) : null;
+} catch (error) {
+  console.error("Failed to parse stored user info", error);
+  storedUser = null;
+  localStorage.removeItem("userInfo");
+}
 
-export const registerUser = createAsyncThunk("user/registerUser", async (data) => {
-  return await register(data);
+const resolveRoles = (user) => ({
+  isHost: Boolean(user && user.role === "HOST"),
+  isAdmin: Boolean(user && user.role === "ADMIN"),
 });
 
 const initialState = {
-  user: null,
-  token: getToken() || null,
+  token: storedToken || null,
+  userInfo: storedUser,
+  ...resolveRoles(storedUser),
   loading: false,
   error: null,
 };
@@ -26,35 +30,64 @@ const userSlice = createSlice({
   name: "user",
   initialState,
   reducers: {
-    logout(state) {
-      state.user = null;
-      state.token = null;
-      localStorage.removeItem("token");
+    setLoading: (state, action) => {
+      state.loading = action.payload;
     },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(loginUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
+    setError: (state, action) => {
+      state.error = action.payload;
+      if (action.payload) {
         state.loading = false;
-        state.token = action.payload.token || null;
-        state.error = action.payload.message || null;
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message;
-      })
-      .addCase(fetchProfile.fulfilled, (state, action) => {
-        state.user = action.payload;
-      })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        state.error = action.payload.message || null;
-      });
+      }
+    },
+    setCredentials: (state, action) => {
+      const { token, user } = action.payload || {};
+      state.token = token || null;
+      state.userInfo = user || null;
+      const roles = resolveRoles(user);
+      state.isHost = roles.isHost;
+      state.isAdmin = roles.isAdmin;
+      state.loading = false;
+      state.error = null;
+
+      if (token) {
+        localStorage.setItem("token", token);
+      } else {
+        localStorage.removeItem("token");
+      }
+
+      if (user) {
+        localStorage.setItem("userInfo", JSON.stringify(user));
+      } else {
+        localStorage.removeItem("userInfo");
+      }
+    },
+    setUserProfile: (state, action) => {
+      const user = action.payload || null;
+      state.userInfo = user;
+      const roles = resolveRoles(user);
+      state.isHost = roles.isHost;
+      state.isAdmin = roles.isAdmin;
+      state.loading = false;
+      state.error = null;
+
+      if (user) {
+        localStorage.setItem("userInfo", JSON.stringify(user));
+      } else {
+        localStorage.removeItem("userInfo");
+      }
+    },
+    logout: (state) => {
+      state.token = null;
+      state.userInfo = null;
+      state.isHost = false;
+      state.isAdmin = false;
+      state.loading = false;
+      state.error = null;
+      localStorage.removeItem("token");
+      localStorage.removeItem("userInfo");
+    },
   },
 });
 
-export const { logout } = userSlice.actions;
+export const { setLoading, setError, setCredentials, setUserProfile, logout } = userSlice.actions;
 export default userSlice.reducer;

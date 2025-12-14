@@ -30,9 +30,11 @@ app.use(
   })
 );
 
-// Add request logging
+// Simple request logging (only for errors in production)
 app.use((req, res, next) => {
-  console.log(`📡 ${req.method} ${req.url}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`${req.method} ${req.url}`);
+  }
   next();
 });
 
@@ -63,19 +65,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Update server startup
+// Server startup
 const startServer = async () => {
   try {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
-      console.log(`
-        🚀 Server running on port ${PORT}
-        📁 API endpoint: http://localhost:${PORT}/api
-        ⚡ Environment: ${process.env.NODE_ENV}
-      `);
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 };

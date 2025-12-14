@@ -1,43 +1,40 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 export function HostProfileView({ user, formatDateTime }) {
   const [showImagePreview, setShowImagePreview] = useState(false);
-  const navigate = useNavigate();
 
-  const safeParse = (jsonString, defaultValue = []) => {
-    if (!jsonString) return defaultValue;
+  if (!user) return <div className="p-6 text-center">No host data available</div>;
+
+  const profile = user.hostProfile || {};
+  
+  // Parse social links safely
+  const socialLinks = (() => {
+    if (!profile.socialLinks) return {};
     try {
-      if (typeof jsonString === 'string') {
-        const parsed = JSON.parse(jsonString);
-        return Array.isArray(defaultValue) ? 
-          (Array.isArray(parsed) ? parsed : defaultValue) :
-          (typeof parsed === 'object' ? parsed : defaultValue);
-      }
-      return jsonString;
-    } catch (error) {
-      console.error('JSON parse error:', error);
-      return defaultValue;
+      return typeof profile.socialLinks === 'string' 
+        ? JSON.parse(profile.socialLinks) 
+        : profile.socialLinks;
+    } catch {
+      return {};
     }
-  };
-
-  if (!user) return <div>No host data available</div>;
+  })();
 
   return (
     <>
-      {/* Host Info Section */}
-      <section className="bg-white p-6 rounded-lg shadow mb-8">
+      {/* Host Profile Card */}
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center space-x-6">
             <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-gray-200">
               {user.hostProfile?.profilePicUrl ? (
                 <img
-                  src={`http://localhost:5000${user.hostProfile.profilePicUrl}`}
+                  src={user.hostProfile.profilePicUrl}
                   alt={user.name}
                   className="w-full h-full object-cover cursor-pointer"
                   onClick={() => setShowImagePreview(true)}
                   onError={(e) => {
-                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&size=128`;
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&size=128&background=6366f1&color=ffffff`;
                   }}
                 />
               ) : (
@@ -114,7 +111,7 @@ export function HostProfileView({ user, formatDateTime }) {
             </div>
           </div>
         )}
-      </section>
+      </div>
 
       {/* Image Preview Modal */}
       {showImagePreview && user.hostProfile?.profilePicUrl && (
@@ -124,7 +121,7 @@ export function HostProfileView({ user, formatDateTime }) {
         >
           <div className="relative max-w-3xl w-full">
             <img
-              src={`http://localhost:5000${user.hostProfile.profilePicUrl}`}
+              src={user.hostProfile.profilePicUrl}
               alt={user.name}
               className="w-full h-auto rounded-lg"
             />

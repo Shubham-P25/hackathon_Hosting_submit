@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getHostProfile } from '../api/hostProfile';
 import { updateHostFullProfile } from '../api/hostFullProfile';
+import { uploadHostProfilePicture } from '../api/profile';
 import { Skeleton } from '../ui/Skeleton';
 import { motion } from 'framer-motion';
 
@@ -12,52 +13,39 @@ export default function HostProfile() {
   const [formData, setFormData] = useState(null);
   const [newSkill, setNewSkill] = useState('');
   const [newAchievement, setNewAchievement] = useState('');
+  const [profilePicFile, setProfilePicFile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
-  // Ensure missing fields are present in formData, and parse achievements/socialLinks
-  useEffect(() => {
-    if (formData) {
-      setFormData(prev => {
-        // Achievements is always a string
-        let achievements = prev?.achievements;
-        if (Array.isArray(achievements)) {
-          // Remove brackets and join
-          achievements = achievements.filter(a => a !== '[' && a !== ']').join(', ');
-        } else if (typeof achievements !== 'string') {
-          achievements = '';
-        }
-        // Social links is a JSON string or object
-        let socialLinks = prev?.socialLinks;
-        if (typeof socialLinks === 'string') {
-          try { socialLinks = JSON.parse(socialLinks); } catch { socialLinks = { github: '', linkedin: '', twitter: '' }; }
-        }
-        if (typeof socialLinks !== 'object' || socialLinks === null) socialLinks = { github: '', linkedin: '', twitter: '' };
-        return {
-          ...prev,
-          education: prev?.education || '',
-          collegeOrCompany: prev?.collegeOrCompany || '',
-          clgNameorCmpName: prev?.clgNameorCmpName || '',
-          achievements,
-          socialLinks,
-        };
-      });
-    }
-    // Only run on mount
-    // eslint-disable-next-line
-  }, []);
+
 
   useEffect(() => {
     getHostProfile().then(data => {
       setHost(data);
-        // Merge role from user table into formData for display only
-        setFormData({
-          ...(data.hostProfile || {}),
-          role: data.role || 'HOST',
-          email: data.email || '',
-          name: data.name || '',
-        });
+      const profile = data.hostProfile || {};
+      
+      // Parse JSON fields from database strings
+      let achievements = profile.achievements || [];
+      if (typeof achievements === 'string') {
+        try { achievements = JSON.parse(achievements); } catch { achievements = []; }
+      }
+      
+      let socialLinks = profile.socialLinks || {};
+      if (typeof socialLinks === 'string') {
+        try { socialLinks = JSON.parse(socialLinks); } catch { socialLinks = {}; }
+      }
+      
+      // Merge role from user table into formData for display only
+      setFormData({
+        ...profile,
+        role: data.role || 'HOST',
+        email: data.email || '',
+        name: data.name || '',
+        // Use parsed JSON fields
+        achievements,
+        socialLinks,
+      });
     });
   }, []);
 
@@ -86,39 +74,77 @@ export default function HostProfile() {
   };
 
   const handleAddAchievement = () => {
-    if (newAchievement) {
-      setFormData(prev => ({ ...prev, achievements: prev.achievements ? prev.achievements + ', ' + newAchievement : newAchievement }));
+    if (newAchievement && !formData.achievements?.includes(newAchievement)) {
+      setFormData(prev => ({ ...prev, achievements: [...(prev.achievements || []), newAchievement] }));
       setNewAchievement('');
     }
   };
   const handleRemoveAchievement = (ach) => {
-    if (!formData.achievements) return;
-    // Remove the achievement from the comma-separated string
-    const achArr = formData.achievements.split(',').map(a => a.trim()).filter(a => a && a !== ach);
-    setFormData(prev => ({ ...prev, achievements: achArr.join(', ') }));
+    setFormData(prev => ({ ...prev, achievements: prev.achievements.filter(a => a !== ach) }));
+  };
+
+  const handleProfilePicChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProfilePicFile(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFormData(prev => ({ ...prev, profilePicUrl: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Send all fields in one call
-      const payload = { ...formData };
-      // Remove role and gender (not DB fields)
-      delete payload.role;
-      delete payload.gender;
-      // Save
-      const result = await updateHostFullProfile(payload);
+      let result;
+      
+      if (profilePicFile) {
+        // Upload profile picture and profile data together
+        const payload = { ...formData };
+        // Remove role and gender (not DB fields)
+        delete payload.role;
+        delete payload.gender;
+        delete payload.profilePicUrl; // Remove base64 data, let the upload handle it
+        
+        result = await uploadHostProfilePicture(profilePicFile, payload);
+        setProfilePicFile(null); // Clear the file after successful upload
+      } else {
+        // Send all fields in one call
+        const payload = { ...formData };
+        // Remove role and gender (not DB fields)
+        delete payload.role;
+        delete payload.gender;
+        
+        console.log('HostProfile - Sending payload:', payload);
+        console.log('HostProfile - Achievements:', payload.achievements);
+        
+        // Save
+        result = await updateHostFullProfile(payload);
+      }
       const updated = result.hostProfile || {};
-      // Parse achievements/socialLinks for UI
-      let achievements = updated.achievements;
+      
+      // Parse JSON fields from database strings
+      let achievements = updated.achievements || [];
       if (typeof achievements === 'string') {
         try { achievements = JSON.parse(achievements); } catch { achievements = []; }
       }
-      let socialLinks = updated.socialLinks;
+      
+      let socialLinks = updated.socialLinks || {};
       if (typeof socialLinks === 'string') {
         try { socialLinks = JSON.parse(socialLinks); } catch { socialLinks = {}; }
       }
-      setFormData({ ...updated, achievements, socialLinks, name: result.user?.name || formData.name, email: result.user?.email || formData.email });
+      
+      // Update form data with parsed fields
+      setFormData({ 
+        ...updated, 
+        achievements, 
+        socialLinks, 
+        name: result.user?.name || formData.name, 
+        email: result.user?.email || formData.email,
+        role: host?.role || 'HOST' // Always preserve role
+      });
       setShowToast(true);
       setToastMsg('Profile saved!');
       setIsEditing(false);
@@ -149,20 +175,26 @@ export default function HostProfile() {
           <div className="flex flex-col sm:flex-row items-center gap-8 mb-10">
             <div className="relative group">
               <div className="h-36 w-36 rounded-full border-4 border-white overflow-hidden bg-gradient-to-br from-pink-200 to-red-200 flex items-center justify-center shadow-xl">
-                {formData.profilePic ? (
-                  <img src={formData.profilePic} alt={formData.name} className="h-full w-full object-cover" />
+                {formData.profilePicUrl ? (
+                  <img src={formData.profilePicUrl} alt={formData.name} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-5xl font-bold text-gray-400">
                     {formData.name?.charAt(0) || ''}
                   </span>
                 )}
               </div>
+              {isEditing && (
+                <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-white text-sm font-medium">Change Photo</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleProfilePicChange} />
+                </label>
+              )}
             </div>
             <div className="flex-1 w-full flex flex-col gap-2 items-center sm:items-start">
               <h1 className="text-3xl font-bold text-gray-900">{formData.name}</h1>
               <p className="text-gray-600 text-lg">{formData.email}</p>
               <div className="flex flex-wrap gap-4 mt-2">
-                <span className="bg-gradient-to-r from-red-200 to-pink-100 px-3 py-1 h-8 rounded-full text-gray-700 text-sm font-semibold shadow">Role: {formData.role}</span>
+                <span className="bg-gradient-to-r from-red-200 to-pink-100 px-3 py-1 h-8 rounded-full text-gray-700 text-sm font-semibold shadow">Role: {host?.role || 'HOST'}</span>
                   {/* Gender is not in HostProfile, so only show if present */}
                   {formData.gender && (
                     <span className="bg-gradient-to-r from-pink-100 to-red-100 px-3 py-1 rounded-full text-gray-700 text-sm font-semibold shadow">Gender: {formData.gender}</span>
@@ -307,9 +339,16 @@ export default function HostProfile() {
             </motion.div>
             <motion.div className="bg-gradient-to-br from-[#FFCBD8] to-[#FFFFD4] p-6 rounded-2xl shadow-lg border border-pink-200 hover:shadow-2xl transition-all duration-200 col-span-1 sm:col-span-2" whileHover={{ scale: 1.04 }}>
               <h3 className="font-medium text-gray-900 mb-2">Achievements</h3>
-              <div className="text-gray-700 min-h-[32px]">
-                {formData.achievements ? formData.achievements : <span className="text-gray-400">No achievements yet</span>}
-              </div>
+              <ul className="text-red-700 min-h-[32px] space-y-1">
+                {formData.achievements?.length ? formData.achievements.map((ach, i) => (
+                  <li key={i} className="flex items-center justify-between bg-transparent px-3 py-1 rounded">
+                    <span>{ach}</span>
+                    {isEditing && (
+                      <button onClick={() => handleRemoveAchievement(ach)} className="text-red-500 hover:text-red-700 ml-2">×</button>
+                    )}
+                  </li>
+                )) : <li className="text-gray-400">No achievements yet</li>}
+              </ul>
               {isEditing && (
                 <div className="flex mt-2">
                   <input
