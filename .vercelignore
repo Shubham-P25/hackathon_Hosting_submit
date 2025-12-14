@@ -13,4 +13,4 @@ build
 coverage
 .next
 .turbo
-*.log
+.log
